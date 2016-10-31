@@ -1,0 +1,98 @@
+%#!platex main.tex
+%#BIBTEX pbibtex main
+
+\section{行動}
+
+ToDo:論理学の用語がほとんどわからないので少し調べる。
+$R = 14$とする。二重否定則を採用する。
+無限は絡まないので選択公理等はどうでもいいはず。
+
+\begin{lem} \label{lem:land_lor}
+ $a, b, c$を真か偽かの変数とする。以下が成立する。
+ \[
+ (a \land b) \lor c = (a \lor c) \land (b \lor c).
+ \]
+\end{lem}
+
+\begin{proof}
+ もっとかっこいい方法があるかもしれないが、私は$(a, b, c)$の
+ 真偽$8$パターンを確かめた。
+ $a$が真のときと
+ $(a, b, c) = (\text{偽}, \text{真}, \text{真})$のときは両辺真、
+ 残りは偽である。\qedhere
+\end{proof}
+
+\begin{cor} \label{cor:rightarrow}
+ $a, b, c$を真か偽かの変数とする。以下が成立する。
+ \[
+  a \Rightarrow b = (\lnot a \lor b).
+ \]
+\end{cor}
+
+\begin{proof}
+ $a \Rightarrow b$は$\lnot a \lor (a \land b)$と同値である。
+ あとは補題~\ref{lem:land_lor}を用いると、次式がしたがう。
+ \[
+  \lnot a \lor (a \land b) = (\lnot a \lor a) \land (\lnot a \lor b)
+ = (\lnot a \lor b). \qedhere
+ \]
+\end{proof}
+
+\begin{nota}
+ $0 \leq i, j \leq R$とする。
+ $s_{ij}$を「$i$行$j$列が行動開始地点ならば真、そうでないならば偽」とする。
+ $e_{ij}$を「$i$行$j$列が行動終了地点ならば真、そうでないならば偽」とする。
+\end{nota}
+
+まず、ごく当然なことだが、$2$つ以上のマスが行動開始地点であってはならな
+い。このことは SAT Solver に明示的に入力される必要がある。
+つまり、全ての$(i, j) \neq (k, l)$に対し、
+$\lnot (s_{ij} \land s_{kl})$である。すなわち、
+\[
+ (\text{Forbid})_s = \bigwedge_{i = 0}^R \bigwedge_{j = 0}^R \lnot
+ (s_{ij} \land s_{kl})
+\]
+である。これを SAT の入力に合うように変形すると、
+\begin{align*}
+ (\text{Forbid})_s &= \bigwedge_{i = 0}^R \bigwedge_{j = 0}^R (\lnot
+ s_{ij} \lor \lnot s_{kl}) 
+\end{align*}
+である。これは$e$も同様である。すなわち、
+\begin{align*}
+ (\text{Forbid})_e &= \bigwedge_{i = 0}^R \bigwedge_{j = 0}^R (\lnot
+ e_{ij} \lor \lnot e_{kl}) 
+\end{align*}
+である。
+
+次に、移動はせいぜい$1$マスしかできないことを条件に加える。
+$k, l$はそれぞれ$1$以上$R$以下とする。
+しばらく、点$(k, l)$から
+$0$または$1$しか離れていないマス$(i, j)$について$\bigvee$をとった
+ものを$\bigvee_{i, j}$と表記することにする。素朴には
+\[
+ \bigvee_{i, j} = \bigvee_{i = k-1}^{k+1} \bigvee_{i = l-1}^{l+1} 
+\]
+のことだが、$(k, l)$が端のマスだったら$(i, j)$はフィールドの
+外かもしれない。その部分は実装の際に適宜外すことにする。
+
+さて、行動開始地点が点$(k, l)$のとき、行動終了地点が
+せいぜい$1$マスしか離れていないことは、任意の$(k, l)$に対して
+\[
+ s_{kl} \Rightarrow \left( \bigvee_{i, j} e_{ij} \right)
+\]
+であると書ける。補題~\ref{cor:rightarrow}より、これは
+\[
+ \lnot s_{kl} \lor \left( \bigvee_{i, j} e_{ij} \right)
+\]
+と同値である。$(k, l)$について$\bigwedge$をとって、
+\[
+ (\text{start-end}) = \bigwedge_{k = 0}^R \bigwedge_{l = 0}^R 
+ \left(\lnot s_{kl} \lor \left( \bigvee_{i, j} e_{ij} \right) \right)
+\]
+が求める条件である。
+
+% Local Variables:
+% mode: yatex
+% coding: utf-8
+% TeX-master: "main.tex"
+% End:
