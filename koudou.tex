@@ -7,6 +7,13 @@ ToDo:論理学の用語がほとんどわからないので少し調べる。
 $R = 14$とする。二重否定則を採用する。
 無限は絡まないので選択公理等はどうでもいいはず。
 
+\subsection{「ならば」の変換}
+
+SAT Solver に投げる命題に条件を落とし込むときに、
+「ならば」で発想すると自然に記述できるように思う。
+ところが「ならば」は SAT Solver には直接入力はできない。
+そこで「ならば」の変換に必要な補題を用意する。
+
 \begin{lem} \label{lem:land_lor}
  $a, b, c$を真か偽かの変数とする。以下が成立する。
  \[
@@ -18,7 +25,7 @@ $R = 14$とする。二重否定則を採用する。
  もっとかっこいい方法があるかもしれないが、私は$(a, b, c)$の
  真偽$8$パターンを確かめた。
  $a$が真のときと
- $(a, b, c) = (\text{偽}, \text{真}, \text{真})$のときは両辺真、
+ $(a, b, c) = (\text{真}, \text{真}, \text{偽})$のときは両辺真、
  残りは偽である。\qedhere
 \end{proof}
 
@@ -38,34 +45,58 @@ $R = 14$とする。二重否定則を採用する。
  \]
 \end{proof}
 
+\subsection{行動した「地点」に関する入力}
+
+ここでは、行動開始地点、行動終了地点、塗った地点に関する
+基本的な条件を落とし込む。実際にフィールドを見て
+それらを決定するプロセスは次小節にまわす。
+
+まずは、行動地点に関する変数を導入する。
+
 \begin{nota}
- $0 \leq i, j \leq R$とする。
- $s_{ij}$を「$i$行$j$列が行動開始地点ならば真、そうでないならば偽」とする。
- $e_{ij}$を「$i$行$j$列が行動終了地点ならば真、そうでないならば偽」とする。
+ $0 \leq i, j \leq R$とする。$k = 0, 1, 2 ,3$とする。
+ \begin{enumerate}[1.]
+  \item $s_{ij}$を「$i$行$j$列が行動開始地点ならば真、そうでないならば偽」とする。
+  \item $e_{ij}$を「$i$行$j$列が行動終了地点ならば真、そうでないならば偽」とする。
+  \item $d_{ijk}$を「$i$行$j$列方角$k$で塗ったならば真、そうでないならば偽」とする。
+ \end{enumerate}
 \end{nota}
 
-まず、ごく当然なことだが、$2$つ以上のマスが行動開始地点であってはならな
+最初に、当然だが、どこかの地点で行動開始、どこかの地点で塗り、どこかの地
+点で行動終了していないといけない。これらの条件はそれぞれ
+\begin{align*}
+ (\text{Allow})_s &= \bigvee_{i = 0}^R \bigvee_{j = 0}^R s_{ij}, \\
+ (\text{Allow})_e &= \bigvee_{i = 0}^R \bigvee_{j = 0}^R e_{ij}, \\
+ (\text{Allow})_d &=
+ \bigvee_{i = 0}^R \bigvee_{j = 0}^R \bigvee_{j = 0}^3 d_{ijk}
+\end{align*}
+と表せる。
+
+次に、これも当然なことだが、$2$つ以上のマスが行動開始地点であってはならな
 い。このことは SAT Solver に明示的に入力される必要がある。
 つまり、全ての$(i, j) \neq (k, l)$に対し、
 $\lnot (s_{ij} \land s_{kl})$である。すなわち、
 \[
- (\text{Forbid})_s = \bigwedge_{i = 0}^R \bigwedge_{j = 0}^R \lnot
+ (\text{Forbid})_s = 
+ \bigwedge_{(i, j) \neq (k, l)} \lnot
  (s_{ij} \land s_{kl})
 \]
 である。これを SAT の入力に合うように変形すると、
 \begin{align*}
- (\text{Forbid})_s &= \bigwedge_{i = 0}^R \bigwedge_{j = 0}^R (\lnot
+ (\text{Forbid})_s &= \bigwedge_{(i, j) \neq (k, l)} (\lnot
  s_{ij} \lor \lnot s_{kl}) 
 \end{align*}
-である。これは$e$も同様である。すなわち、
+である。これは$e, d$も同様である。すなわち、
 \begin{align*}
- (\text{Forbid})_e &= \bigwedge_{i = 0}^R \bigwedge_{j = 0}^R (\lnot
- e_{ij} \lor \lnot e_{kl}) 
+ (\text{Forbid})_e &= \bigwedge_{(i, j) \neq (k, l)} (\lnot
+ e_{ij} \lor \lnot e_{kl}), \\
+ (\text{Forbid})_d &= \bigwedge_{(i, j, k) \neq (l, m, n)} (\lnot
+ e_{ijk} \lor \lnot e_{lmn})
 \end{align*}
 である。
 
 次に、移動はせいぜい$1$マスしかできないことを条件に加える。
-$k, l$はそれぞれ$1$以上$R$以下とする。
+$k, l$はそれぞれ$0$以上$R$以下とする。
 しばらく、点$(k, l)$から
 $0$または$1$しか離れていないマス$(i, j)$について$\bigvee$をとった
 ものを$\bigvee_{i, j}$と表記することにする。素朴には
@@ -87,9 +118,40 @@ $0$または$1$しか離れていないマス$(i, j)$について$\bigvee$をと
 と同値である。$(k, l)$について$\bigwedge$をとって、
 \[
  (\text{start-end}) = \bigwedge_{k = 0}^R \bigwedge_{l = 0}^R 
- \left(\lnot s_{kl} \lor \left( \bigvee_{i, j} e_{ij} \right) \right)
+ \left(\lnot s_{kl} \lor \left( \bigvee_{i, j} e_{ij} \right) \right)\
 \]
 が求める条件である。
+
+次に塗った位置と方角についての条件を書く。つまり「塗った位置は、開始地点
+か終了地点である」ということである。すなわち、任意の$(i, j, k)$に対し、
+\[
+ d_{ijk} \Longrightarrow s_{ij} \lor e_{ij}
+\]
+である。補題~\ref{cor:rightarrow}より、これは
+\[
+ \lnot d_{ijk} \lor (s_{ij} \lor e_{ij})
+\]
+と同値である。すなわち、条件は
+\[
+ (\text{drawpoint}) =
+ \bigwedge_{i = 0}^{R} \bigwedge_{j = 0}^R \bigwedge_{k = 0}^3
+ (\lnot d_{ijk} \lor s_{ij} \lor e_{ij})
+\]
+である。
+
+\begin{rem}
+ ここまでの制約をまとめると、以下の通りである。
+ \begin{itemize}
+  \item 行動開始地点と行動終了地点がただ$1$つ存在する。
+  \item 行動開始地点と行動終了地点はせいぜい$1$マスしか離れていない。
+  \item 塗った地点と塗った方向がただ$1$つ存在する。
+  \item 塗った地点は、行動開始地点または行動終了地点である。
+ \end{itemize}
+\end{rem}
+
+\subsection{塗った地点の制約}
+
+
 
 % Local Variables:
 % mode: yatex

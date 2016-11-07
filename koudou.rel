@@ -1,0 +1,30 @@
+;; RefTeX parse info file
+;; File: /Users/alice/GoogleDrive/source/tex/SAT-solver-AI-project/koudou.tex
+;; User: alice (Alice)
+
+(set reftex-docstruct-symbol '(
+
+
+(xr nil "\\\\\\\\\\\\")
+
+(index-tags)
+
+(is-multi nil)
+
+(bibview-cache)
+
+(master-dir . "/Users/alice/GoogleDrive/source/tex/SAT-solver-AI-project/")
+
+(label-numbers)
+
+(bof "/Users/alice/GoogleDrive/source/tex/SAT-solver-AI-project/koudou.tex")
+
+(toc "toc" "    1 行動" "/Users/alice/GoogleDrive/source/tex/SAT-solver-AI-project/koudou.tex" nil 2 "1" "\\section{行動}" 43)
+
+("lem:land_lor" "l" "$a, b, c$を真か偽かの変数とする。以下が成立する。 \\[ (a \\land b) \\lor c = (a \\lor c) \\land (b \\lor c). \\] " "/Users/alice/GoogleDrive/source/tex/SAT-solver-AI-project/koudou.tex" nil)
+
+("cor:rightarrow" "c" "$a, b, c$を真か偽かの変数とする。以下が成立する。 \\[ a \\Rightarrow b = (\\lnot a \\lor b.) \\] " "/Users/alice/GoogleDrive/source/tex/SAT-solver-AI-project/koudou.tex" nil)
+
+(eof "/Users/alice/GoogleDrive/source/tex/SAT-solver-AI-project/koudou.tex")
+))
+
