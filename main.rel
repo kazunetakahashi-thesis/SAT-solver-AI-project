@@ -1,0 +1,66 @@
+;; RefTeX parse info file
+;; File: /Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/main.tex
+;; User: alice (Alice)
+
+(set reftex-docstruct-symbol '(
+
+
+(xr nil "\\\\\\\\\\\\")
+
+(index-tags)
+
+(is-multi t)
+
+(bibview-cache)
+
+(master-dir . "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/")
+
+(label-numbers)
+
+(bof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/main.tex")
+
+(bof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/intro.tex")
+
+(toc "toc" "    1 はじめに" "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/intro.tex" nil 2 "1" "\\section{はじめに}" 80)
+
+(eof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/intro.tex")
+
+(bof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/defn.tex")
+
+(toc "toc" "    2 定義" "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/defn.tex" nil 2 "2" "\\section{定義}" 43)
+
+(eof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/defn.tex")
+
+(bof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex")
+
+(toc "toc" "    3 行動" "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex" nil 2 "3" "\\section{行動}" 43)
+
+(toc "toc" "      3.1 「ならば」の変換" "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex" nil 3 "3.1" "\\subsection{「ならば」の変換}" 137)
+
+("lem:land_lor" "l" "$a, b, c$を真か偽かの変数とする。以下が成立する。 \\[ (a \\land b) \\lor c = (a \\lor c) \\land (b \\lor c). \\] " "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex" nil)
+
+("cor:rightarrow" "c" "$a, b, c$を真か偽かの変数とする。以下が成立する。 \\[ a \\Rightarrow b = (\\lnot a \\lor b). \\] " "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex" nil)
+
+(toc "toc" "      3.2 行動した「地点」に関する入力" "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex" nil 3 "3.2" "\\subsection{行動した「地点」に関する入力}" 922)
+
+(toc "toc" "      3.3 塗った地点の制約" "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex" nil 3 "3.3" "\\subsection{塗った地点の制約}" 3571)
+
+("nota:field_var" "s" "$0 \\leq l, m \\leq R$とする。 \\begin{enumerate}[1.] " "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex" nil)
+
+("nota:params_d_g" "s" "\\begin{enumerate}[1.] " "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex" nil)
+
+("eq:" "e" "d_{ijk} \\Rightarrow \\left( \\bigvee_{(l, m) \\in D_{ijk}} g_{lm} \\right) \\land \\left( \\bigvee_{(l, m) " "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex" nil)
+
+(eof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/koudou.tex")
+
+(appendix . t)
+
+(bof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/ref.tex")
+
+(bib "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/ref.bib")
+
+(eof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/ref.tex")
+
+(eof "/Users/alice/GoogleDrive/source/tex/sat-solver-AI-project/main.tex")
+))
+

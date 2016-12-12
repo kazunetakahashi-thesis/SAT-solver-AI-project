@@ -30,7 +30,7 @@ SAT Solver に投げる命題に条件を落とし込むときに、
 \end{proof}
 
 \begin{cor} \label{cor:rightarrow}
- $a, b, c$を真か偽かの変数とする。以下が成立する。
+ $a, b$を真か偽かの変数とする。以下が成立する。
  \[
   a \Rightarrow b = (\lnot a \lor b).
  \]
@@ -61,6 +61,11 @@ SAT Solver に投げる命題に条件を落とし込むときに、
   \item $d_{ijk}$を「$i$行$j$列方角$k$で塗ったならば真、そうでないならば偽」とする。
  \end{enumerate}
 \end{nota}
+
+\begin{rem} \label{rem:kumiawase}
+ $1$ターン内にできる敵の行動は、顕現・隠伏の違いを除けば
+ 真である$s_{ij}$、$e_{ijk}$、$d_{ijk}$の組み合わせに対応する。
+\end{rem}
 
 最初に、当然だが、どこかの地点で行動開始、どこかの地点で塗り、どこかの地
 点で行動終了していないといけない。これらの条件はそれぞれ
@@ -151,7 +156,196 @@ $0$または$1$しか離れていないマス$(i, j)$について$\bigvee$をと
 
 \subsection{塗った地点の制約}
 
+ここから先は、各ターン毎のフィールドの状況を鑑みて、
+$d_{ijk}$に制限を加える。以下では、
+$0 \leq i, j \leq R$、および、$k = 0, 1, 2, 3$は固定する。
 
+以下では、次の前提を置く。
+\begin{itemize}
+ \item SAT Solver を使って敵の位置を特定するのは、
+       直前のターンのフィールドの状況と現在のフィールドの状況を
+       見比べた際に、ある地点の色が敵軍の武将の色に変化したことを
+       確認したとき、および、そのときのみとする。
+ \item 変化後の色を持った武将を、以下では単に\emph{敵}と呼ぶ。
+\end{itemize}
+
+この前提をもとに、フィールドの状況を SAT Solver に入力する
+変数を用意する。
+\begin{nota}[フィールドからの制約変数] \label{nota:field_var}
+ $0 \leq l, m \leq R$とする。
+ \begin{enumerate}[1.]
+  \item $\alpha_{lm}$を「点$(l, m)$が知覚されており、かつ、
+        現在敵の色で塗られているなら真、
+        そうでないなら偽」
+        とする。より具体的に言うと、点$(l, m)$が
+        味方軍の色、あるいは、敵以外の敵軍の色で塗られ
+        ている場合、ないしは、点$(l, m)$をの色を知覚できない場合を偽とする。
+  \item $\beta_{lm}$を「点$(l, m)$が知覚されており、かつ、
+        現在敵の色で塗られていないなら真、
+        そうでないなら偽」
+        とする。より具体的に言うと、点$(l, m)$が
+        敵の色で塗られている場合、
+        ないしは、点$(l, m)$をの色を知覚できない場合を偽とする。
+  \item $\gamma_{lm}$を「点$(l, m)$を敵が直前に塗ったことが確実ならば真、
+        そうでないなら偽」とする。つまり、現在敵の色で塗られているものの
+        敵の行動の直前は敵の色で塗られていない場合に真とし、
+        それ以外は偽とする。
+  \item $\delta_{lm}$を「点$(l, m)$を敵が直前に塗らなかったことが
+        確実ならば真、そうでないなら偽」とする。
+        つまり、現在敵の色以外で塗られており、
+        敵の行動の直前も同じ色で塗られていた場合は真とし、
+        それ以外は偽とする。
+ \end{enumerate}
+\end{nota}
+
+\begin{rem}
+ 記号~\ref{nota:field_var}の
+ $\alpha_{lm}$、$\beta_{lm}$、$\gamma_{lm}$、$\delta_{lm}$は全て
+ SAT Solver に真か偽かを入力するものとする。
+ 例えば、$\alpha_{lm}$が真である場合には$1$つのリテラルからなる節
+ $\alpha_{lm}$を、偽である場合には$1$つのリテラルからなる節
+ $\lnot \alpha_{lm}$を入力する。
+\end{rem}
+
+さて、塗ったときの敵の地点と方向は$d_{ijk}$で表現されているが、
+この情報を塗ったマスの情報に予めおきかえておくことが以下では必要になる。
+つまり、以下で定義する変数$g_{lm}$を媒介して、
+$d_{ijk}$ではなく$g_{lm}$で制約を記述する。
+
+\begin{nota}[塗った地点の情報を媒介する変数] \label{nota:params_d_g}
+ \begin{enumerate}[1.]
+  \item 敵が$(i, j)$の地点で方角$k$に塗ったときに塗られる地点の集合を
+        $D_{ijk}$とする。
+  \item $0 \leq l, m \leq R$とする。
+        $g_{lm}$を「点$(l, m)$が敵が直前の行動で塗った地点ならば真、そう
+        でないならば偽」とする。
+ \end{enumerate}
+\end{nota}
+
+\begin{rem}
+ ここでは敵は固定されているので、$D_{ijk}$は$(i, j, k)$の組により
+ 一意に定まる。
+\end{rem}
+
+\begin{rem} 
+ $g_{lm}$は、どの$d_{ijk}$が成立するかで真か偽かが決まるのであり、
+ フィールドの情報とは関係がないことに注意されたい。
+ $g_{lm}$とフィールドの情報$\beta_{lm}$、$\gamma_{lm}$、
+ $\delta_{lm}$との整合性の条件式を以下で与える。
+ これにより、$g$を媒介としてフィールドの情報から$d$に制約を
+ 与えることができる。
+\end{rem}
+
+さてまず、$d_{ijk}$の情報を$g_{lm}$の情報に置き換える条件式を書く。
+これは記号~\ref{nota:params_d_g}より、
+\[
+ d_{ijk} \Rightarrow \left( \bigwedge_{(l, m) \in D_{ijk}} g_{lm} \right)
+ \land \left( \bigwedge_{(l, m) \not\in D_{ijk}} \lnot g_{lm} \right)
+\]
+である。系~\ref{cor:rightarrow}より、
+\[
+ \lnot d_{ijk} \lor 
+ \left(
+ \left( \bigwedge_{(l, m) \in D_{ijk}} g_{lm} \right)
+ \land \left( \bigwedge_{(l, m) \not\in D_{ijk}} \lnot g_{lm} \right)
+ \right)
+\]
+と同値である。補題~\ref{lem:land_lor}及び
+$(i, j, k)$が固定されていたことを考慮すると、
+求める条件は
+\begin{equation}
+ (\text{param-trans}) = \bigwedge_{i, j, k} \left(
+                            \left( \bigwedge_{(l, m) \in D_{ijk}}
+                             (\lnot d_{ijk} \lor g_{lm}) \right)
+                            \land
+                            \left( \bigwedge_{(l, m) \not\in D_{ijk}}
+                             (\lnot d_{ijk} \lor \lnot g_{lm}) \right)
+                           \right)
+\end{equation}
+である。
+
+次に、$\beta_{ij}$、$\gamma_{ij}$、$\delta_{ij}$と
+$g_{ij}$の関係式を導く。次の関係がある。
+\begin{enumerate}
+ \item 敵が直前に塗り替えたことが確実な点は、敵が塗った点である。
+ \item 敵が塗った点は、敵の色でぬられた点、または、知覚できていない点である。
+ \item 敵が直前に塗り替えなかったことが確実な点は、敵が塗った点ではない。
+\end{enumerate}
+言うまでもなくこれらは、任意の$l, m$に対して以下が成立することを
+意味している。
+\begin{enumerate}
+ \item $\gamma_{lm} \Rightarrow g_{lm}$。
+ \item $g_{lm} \Rightarrow \lnot \beta_{lm}$。
+ \item $\delta_{lm} \Rightarrow \lnot g_{lm}$。
+\end{enumerate}
+補題~\ref{lem:land_lor}、系~\ref{cor:rightarrow}より、
+以下が得られる。
+\begin{align*}
+ (\text{field})_\gamma &=
+ \bigwedge_{l = 0}^R  \bigwedge_{m = 0}^R (\lnot \gamma_{lm} \lor
+ g_{ij}), \\
+ (\text{field})_\beta &=
+ \bigwedge_{l = 0}^R  \bigwedge_{m = 0}^R (\lnot g_{lm} \lor
+ \lnot \beta_{ij}), \\
+ (\text{field})_\delta &=
+ \bigwedge_{l = 0}^R  \bigwedge_{m = 0}^R (\lnot \delta_{lm} \lor
+ \lnot g_{ij}).
+\end{align*}
+
+\subsection{隠遁・顕現の条件}
+
+\begin{defn}
+ $\{s_{ij} \}_{ij}$、$\{e_{ij} \}_{ij}$、
+ $\{d_{ijk} \}_{ijk}$は、前節までの条件をみたすものとする。
+ \begin{enumerate}[1.]
+  \item 真である$s_{ij}$、$e_{ij}$、$d_{ijk}$の組み合わせを\emph{行動}
+        と呼ぶ。特にどの元が真であるのかを問題としない場合は
+        $(s, e, d)$とも記す。
+  \item ある行動が\emph{行動可能}であるとは、その行動が$1$ターンのコスト
+        内で行動可能であることをいう。
+ \end{enumerate}
+\end{defn}
+
+注意~\ref{rem:kumiawase}でも指摘した通り、
+$(s, e, d)$の組み合わせは、ルール上の意味での「敵の$1$ターンの行動」に対応する。
+前小節までで、隠遁と顕現の条件以外の制約を考慮に入れた。
+本小節では、隠遁と顕現の条件からありえない組み合わせを排除し、
+その行動が行動可能であることを保証する。
+
+\begin{nota} \label{nota:r_s}
+ \begin{enumerate}
+  \item $r_0$を、開始地点で隠伏状態であるならば真、そうでないならば偽とする。
+  \item $r_1$を、終了地点で隠伏状態であるならば真、そうでないならば偽と
+        する。
+  \item $r_2$を、開始地点と終了地点が異なっているならば真、そうでないな
+        らば偽とする。
+ \end{enumerate}
+\end{nota}
+
+\begin{prop} \label{prop:kengen_inpuku}
+ ある行動が行動可能であるための条件は、以下の節が真であることである。
+ \begin{equation}
+  (\text{movable}) = \lnot r_0 \lor \lnot r_1 \lor \lnot r_2.
+ \end{equation}
+\end{prop}
+
+\begin{proof}
+ ある行動がコスト$7$以内である条件を
+ 現在の状況では
+\end{proof}
+
+\begin{rem}
+ 記号~\ref{nota:r_s}で定められた$r_0, r_1, r_2$は、
+ 隠伏状態であるかないかが判明しない場合は、考慮に入れないことにする。
+ しかしこの場合、命題~\ref{prop:kengen_inpuku}により、
+ その変数は自動的に偽となる。
+\end{nota}
+
+
+\begin{rem}
+ 記号~\ref{nota:r_s}で定められた$r_0, r_1, r_2$は、
+ 
+\end{rem}
 
 % Local Variables:
 % mode: yatex
