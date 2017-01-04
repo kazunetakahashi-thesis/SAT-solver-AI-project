@@ -4,70 +4,72 @@
 \section{定義}
 
 \begin{nota}
- $x, y$を命題とする。
+ $x, y$を命題とする．
  \begin{enumerate}[1.]
-  \item 「$x$の否定」を$\lnot x$と書く。
-  \item 「$x$かつ$y$」のことを$x \land y$と書き、
-        「$x$または$y$」のことを$x \lor y$と書く。
-  \item 「$x$ならば$y$」のことを$x \rightarrow y$と書く。
+  \item 「$x$の否定」を$\lnot x$と書く．
+  \item 「$x$かつ$y$」のことを$x \land y$と書き，
+        「$x$または$y$」のことを$x \lor y$と書く．
+  \item 「$x$ならば$y$」のことを$x \rightarrow y$と書く．
  \end{enumerate}
 \end{nota}
 
 \begin{nota}
- $I$を集合とし、$i \in I$に対し$x_i$は命題とする。
+ $I$を集合とし，$i \in I$に対し$x_i$は命題とする．
  \begin{enumerate}[1.]
   \item 「任意の$i \in I$に対し$x_i$である」のことを
         \[
          \bigwedge_{i \in I} x_i
         \]
-        と書く。$I = n \in \N$が有限集合であるとき、
+        と書く．$I = n \in \N$が有限集合であるとき，
         \[
          \bigwedge_{i \in I} x_i = x_0 \land x_1 \land \dots \land x_{n-1}
         \]
-        である。
+        である．
   \item 「$i \in I$が存在し$x_i$である」のことを
         \[
          \bigvee_{i \in I} x_i
         \]
-        と書く。$I = n \in \N$が有限集合であるとき、
+        と書く．$I = n \in \N$が有限集合であるとき，
         \[
          \bigvee_{i \in I} x_i = x_0 \lor x_1 \lor \dots \lor x_{n-1}
         \]
-        である。
+        である．
  \end{enumerate}
 \end{nota}
 
 \begin{defn}
  \begin{enumerate}[1.]
-  \item $x$が真か偽の値を取る変数であるとき、$x$を単に\emph{変数}と呼ぶ。
-  \item $x$を変数とする。このとき、$x$の\emph{リテラル}とは、
-        $x$、および、$\lnot x$のことである。
-  \item \emph{節}とは、有限個のリテラル$l_1, \dots, l_n$を用いて
+  \item $x$が真か偽の値を取る変数であるとき，$x$を単に\emph{変数}という．
+  \item $x$を変数とする．このとき，$x$の\emph{リテラル}とは，
+        命題$x$，および，命題$\lnot x$のことである．
+  \item \emph{節}とは，有限個のリテラル$l_1, \dots, l_n$を用いて
         \[
          \bigvee_{i = 1}^n l_n = l_1 \lor l_2 \lor \dots \lor l_n
         \]
-        と書かれる命題である。この節の長さを$n$と定義する。
+        と表される命題である．この節の長さを$n$と定義する．
  \end{enumerate}
 \end{defn}
 
 \begin{defn}
- $x_1, \dots, x_n$を変数とする。
+ $x_1, \dots, x_n$を変数とする．
  \begin{enumerate}[1.]
-  \item SAT Solver の\emph{入力}は、
+  \item SAT Solver の\emph{入力}は，
         $x_1, \dots, x_n$のリテラルから作られた有限個の節
         $C_1, \dots, C_m$を用いて
         \[
         X = \bigwedge_{i=1}^m C_i = C_1 \land C_2 \land \dots \land C_m
         \]
-        と書かれる命題である。
-  \item SAT Solver の\emph{出力}は、次のいずれかである。
+        と表される命題である．$C_1, \dots, C_m$の長さがすべて$k$であると
+        き，$X$を{\futoji $k$-SAT 問題}という．
+  \item $X$を入力した際の SAT Solver の\emph{出力}は，
+        次の(a), (b)のいずれかである．
         \begin{enumerate}[(a)]
-         \item 偽である。この場合は、$X$を真にする$(x_1, \dots, x_n)$の
-               真偽値の組が存在しないことを表す。
-         \item 真である。この場合は、$X$を真にする$(x_1, \dots, x_n)$の
-               真偽値の組が存在することを表す。
-               この場合、更に追加で、$X$を真にする$(x_1, \dots, x_n)$の
-               真偽値の組も返す。
+         \item 偽である．この場合は，$X$を真にする$(x_1, \dots, x_n)$の
+               真偽値の組が存在しないことを表す．
+         \item 真である．この場合は，$X$を真にする$(x_1, \dots, x_n)$の
+               真偽値の組が存在することを表す．
+               この場合，更に追加で，$X$を真にする$(x_1, \dots, x_n)$の
+               真偽値の組を$1$つ返す．
         \end{enumerate} 
  \end{enumerate}
 \end{defn}

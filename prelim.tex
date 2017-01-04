@@ -1,0 +1,51 @@
+%#!platex main.tex
+%#BIBTEX pbibtex main
+
+\section{準備}
+
+二重否定則を採用する。
+無限は絡まないので選択公理等はどうでもいいはず。
+
+\subsection{「ならば」の変換}
+
+SAT Solver に投げる命題に条件を落とし込とむきに、
+「ならば」で発想すると自然に記述できるように思う。
+ところが「ならば」は SAT Solver には直接入力はできない。
+そこで「ならば」の変換に必要な補題を用意する。
+
+\begin{lem} \label{lem:land_lor}
+ $a, b, c$を真か偽かの変数とする。以下が成立する。
+ \[
+ (a \land b) \lor c = (a \lor c) \land (b \lor c).
+ \]
+\end{lem}
+
+\begin{proof}
+ もっとかっこいい方法があるかもしれないが、私は$(a, b, c)$の
+ 真偽$8$パターンを確かめた。
+ $a$が真のときと
+ $(a, b, c) = (\text{真}, \text{真}, \text{偽})$のときは両辺真、
+ 残りは偽である。\qedhere
+\end{proof}
+
+\begin{cor} \label{cor:rightarrow}
+ $a, b$を真か偽かの変数とする。以下が成立する。
+ \[
+  a \Rightarrow b = (\lnot a \lor b).
+ \]
+\end{cor}
+
+\begin{proof}
+ $a \Rightarrow b$は$\lnot a \lor (a \land b)$と同値である。
+ あとは補題~\ref{lem:land_lor}を用いると、次式がしたがう。
+ \[
+  \lnot a \lor (a \land b) = (\lnot a \lor a) \land (\lnot a \lor b)
+ = (\lnot a \lor b). \qedhere
+ \]
+\end{proof}
+
+% Local Variables:
+% mode: yatex
+% coding: utf-8
+% TeX-master: "main.tex"
+% End:
