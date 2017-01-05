@@ -1,224 +1,298 @@
 %#!platex main.tex
 %#BIBTEX pbibtex main
 
-\section{行動}
+\section{索敵アルゴリズムの実装}
 
-$R = 14$とする。
+以下では，$R = 14$とする．
+
+\subsection{用語の定義}
+
+まず，考察しやすいように，以下では「戦場」「領有」という用語を使用しない．
+スプラトゥーンに習って用語を置き換える．
+
+\begin{defn}
+ \begin{enumerate}[1.]
+  \item 戦場を\emph{床}と読み替える．
+  \item 区画の領有のことを，床を\emph{塗る}と表現する．
+  \item 誰が区画を領有しているかを示すために，\emph{色}という表現を使用
+        する．例えば，敵の色，敵軍の色，味方の色などという．
+ \end{enumerate}
+\end{defn}
+
+以下では，次の前提を置く．
+
+\begin{rem}
+ \begin{enumerate}[1.]
+  \item SAT Solver を使って武将の位置を特定を試みるのは，
+        以下の (i), (ii) の条件をみたすとき
+        および，そのときのみとする．
+        \begin{enumerate}[(i)]
+         \item 直前のターンの床の状況と現在の床の状況を
+               比べた際に，ある地点の色が敵軍の武将の色に変化したこと
+               を確認した．
+         \item その武将の現在の位置が不明である．
+        \end{enumerate}  
+  \item 自分の全てのターンで，上記の SAT Solver 使用有無の判定を行う．
+        以下では， SAT Solver 使用有無の判定が行われた結果，
+        使用することが決定したと仮定し，考察をすすめる．
+  \item SAT Solver の出力を見て，武将の位置を特定することを目標とする．
+ \end{enumerate}
+\end{rem}
+
+考察に必要な用語を定義する．
+
+\begin{defn}
+ \begin{enumerate}
+  \item 変化後の色を持った武将を，以下では単に\emph{敵}と呼ぶ．
+  \item 敵が直前の$1$ターンでした一連の動作を\emph{行動}という．
+        この定義は定義~\ref{defn:koudou-sed}の
+        直前まで有効であるものとする．
+  \item 敵が直前の$1$ターンを開始した際にいた位置
+        を\emph{行動開始地点}という．
+        敵が直前の$1$ターンを終了した際にいた位置
+        を\emph{行動開始地点}という．
+  \item 敵が直前の$1$ターンで塗りを行った位置を
+        \emph{塗った位置}という．
+ \end{enumerate}
+\end{defn}
+
+今の制約では，塗った位置はちょうど$1$箇所である．
+詳しくは命題~\ref{prop:kengen_inpuku}で述べる．
+
+以下では方角を自然数で表現する．
+
+\begin{rem}
+ 方角は，以下の通りに自然数に対応させる．
+ 0: 南，1: 東，2: 北，3: 西．
+\end{rem}
 
 \subsection{行動した「地点」に関する入力} \label{subsec:chiten}
 
-ここでは、行動開始地点、行動終了地点、塗った地点に関する
-基本的な条件を落とし込む。実際にフィールドを見て
-それらを決定するプロセスは次小節にまわす。
+ここでは，行動開始地点，行動終了地点，塗った地点に関する
+基本的な条件を落とし込む．実際に床を見て
+それらを決定するプロセスは次小節にまわす．
 
-まずは、行動地点に関する変数を導入する。
+まずは，行動地点に関する変数を導入する．
 
 \begin{nota}
- $0 \leq i, j \leq R$とする。$k = 0, 1, 2 ,3$とする。
+ $0 \leq i, j \leq R$とする．$k = 0, 1, 2 ,3$とする．
  \begin{enumerate}[1.]
-  \item $s_{ij}$を「$i$行$j$列が行動開始地点ならば真、そうでないならば偽」とする。
-  \item $e_{ij}$を「$i$行$j$列が行動終了地点ならば真、そうでないならば偽」とする。
-  \item $d_{ijk}$を「$i$行$j$列方角$k$で塗ったならば真、そうでないならば偽」とする。
+  \item $s_{ij}$を「$i$行$j$列が行動開始地点ならば真，そうでないならば偽」とする．
+  \item $e_{ij}$を「$i$行$j$列が行動終了地点ならば真，そうでないならば偽」とする．
+  \item $d_{ijk}$を「$i$行$j$列方角$k$で塗ったならば真，そうでないならば偽」とする．
  \end{enumerate}
 \end{nota}
 
 \begin{rem} \label{rem:kumiawase}
- $1$ターン内にできる敵の行動は、顕現・隠伏の違いを除けば
- 真である$s_{ij}$、$e_{ijk}$、$d_{ijk}$の組み合わせに対応する。
+ $1$ターン内にできる敵の行動は，顕現・隠伏の違いを除けば
+ 真である$s_{ij}$，$e_{ijk}$，$d_{ijk}$の組み合わせに対応する．
 \end{rem}
 
-最初に、当然だが、どこかの地点で行動開始、どこかの地点で塗り、どこかの地
-点で行動終了していないといけない。これらの条件はそれぞれ
+注意~\ref{rem:kumiawase}でも指摘した通り，
+$(s, e, d)$の組み合わせは，ルール上の意味での「敵の$1$ターンの行動」に対
+応する．そこで，「行動」という用語を定義し直す．
+
+\begin{defn} \label{defn:koudou-sed}
+ \begin{enumerate}[1.]
+  \item 以降，\emph{行動}とは
+        真である$s_{ij}$，$e_{ij}$，$d_{ijk}$の組み合わせをいう．
+        特にどの元が真であるのかを問題としない場合は
+        $(s, e, d)$とも記す．
+  \item ある行動が\emph{行動可能}であるとは，その行動が$1$ターンのコスト
+        内で行動可能であることをいう．
+ \end{enumerate}
+\end{defn}
+
+最初に，当然だが，どこかの地点で行動開始，どこかの地点で塗り，どこかの地
+点で行動終了していないといけない．これらの条件はそれぞれ
 \begin{align*}
  (\text{Allow})_s &= \bigvee_{i = 0}^R \bigvee_{j = 0}^R s_{ij}, \\
  (\text{Allow})_e &= \bigvee_{i = 0}^R \bigvee_{j = 0}^R e_{ij}, \\
  (\text{Allow})_d &=
  \bigvee_{i = 0}^R \bigvee_{j = 0}^R \bigvee_{j = 0}^3 d_{ijk}
 \end{align*}
-と表せる。
+と表せる．
 
-次に、これも当然なことだが、$2$つ以上のマスが行動開始地点であってはならな
-い。このことは SAT Solver に明示的に入力される必要がある。
-つまり、全ての$(i, j) \neq (k, l)$に対し、
-$\lnot (s_{ij} \land s_{kl})$である。すなわち、
+次に，これも当然なことだが，$2$つ以上のマスが行動開始地点であってはならな
+い．このことは SAT Solver に明示的に入力される必要がある．
+つまり，全ての$(i, j) \neq (k, l)$に対し，
+$\lnot (s_{ij} \land s_{kl})$である．すなわち，
 \[
  (\text{Forbid})_s = 
  \bigwedge_{(i, j) \neq (k, l)} \lnot
  (s_{ij} \land s_{kl})
 \]
-である。これを SAT の入力に合うように変形すると、
+である．これを SAT の入力に合うように変形すると，
 \begin{align*}
  (\text{Forbid})_s &= \bigwedge_{(i, j) \neq (k, l)} (\lnot
  s_{ij} \lor \lnot s_{kl}) 
 \end{align*}
-である。これは$e, d$も同様である。すなわち、
+である．これは$e, d$も同様である．すなわち，
 \begin{align*}
  (\text{Forbid})_e &= \bigwedge_{(i, j) \neq (k, l)} (\lnot
  e_{ij} \lor \lnot e_{kl}), \\
  (\text{Forbid})_d &= \bigwedge_{(i, j, k) \neq (l, m, n)} (\lnot
  e_{ijk} \lor \lnot e_{lmn})
 \end{align*}
-である。
+である．
 
-次に、移動はせいぜい$1$マスしかできないことを条件に加える。
-$k, l$はそれぞれ$0$以上$R$以下とする。
-しばらく、点$(k, l)$から
+次に，移動はせいぜい$1$マスしかできないことを条件に加える．
+$k, l$はそれぞれ$0$以上$R$以下とする．
+しばらく，点$(k, l)$から
 $0$または$1$しか離れていないマス$(i, j)$について$\bigvee$をとった
-ものを$\bigvee_{i, j}$と表記することにする。素朴には
+ものを$\bigvee_{i, j}$と表記することにする．素朴には，
+$x_{ij}$を変数としたとき，
 \[
- \bigvee_{i, j} = \bigvee_{i = k-1}^{k+1} \bigvee_{i = l-1}^{l+1} 
+ \bigvee_{i, j} x_{ij} = x_{k(l+1)} \lor x_{(k+1)l} \lor
+ x_{k(l-1)} \lor x_{(k-1)l}
 \]
-のことだが、$(k, l)$が端のマスだったら$(i, j)$はフィールドの
-外かもしれない。その部分は実装の際に適宜外すことにする。
+のことだが，$(k, l)$が端のマスだったら$(i, j)$の幾つかの点は
+実際には床の外かもしれない．その部分は実装の際に適宜外すことにする．
 
-さて、行動開始地点が点$(k, l)$のとき、行動終了地点が
-せいぜい$1$マスしか離れていないことは、任意の$(k, l)$に対して
+さて，行動開始地点が点$(k, l)$のとき，行動終了地点が
+せいぜい$1$マスしか離れていないことは，任意の$(k, l)$に対して
 \[
  s_{kl} \Rightarrow \left( \bigvee_{i, j} e_{ij} \right)
 \]
-であると書ける。補題~\ref{cor:rightarrow}より、これは
+であると書ける．補題~\ref{cor:rightarrow}より，これは
 \[
  \lnot s_{kl} \lor \left( \bigvee_{i, j} e_{ij} \right)
 \]
-と同値である。$(k, l)$について$\bigwedge$をとって、
+と同値である．$(k, l)$について$\bigwedge$をとって，
 \[
  (\text{start-end}) = \bigwedge_{k = 0}^R \bigwedge_{l = 0}^R 
  \left(\lnot s_{kl} \lor \left( \bigvee_{i, j} e_{ij} \right) \right)\
 \]
-が求める条件である。
+が求める条件である．
 
-次に塗った位置と方角についての条件を書く。つまり「塗った位置は、開始地点
-か終了地点である」ということである。すなわち、任意の$(i, j, k)$に対し、
+次に塗った位置と方角についての条件を書く．つまり「塗った位置は，開始地点
+か終了地点である」ということである．すなわち，任意の$(i, j, k)$に対し，
 \[
  d_{ijk} \Longrightarrow s_{ij} \lor e_{ij}
 \]
-である。補題~\ref{cor:rightarrow}より、これは
+である．補題~\ref{cor:rightarrow}より，これは
 \[
  \lnot d_{ijk} \lor (s_{ij} \lor e_{ij})
 \]
-と同値である。すなわち、条件は
+と同値である．すなわち，条件は
 \[
  (\text{drawpoint}) =
  \bigwedge_{i = 0}^{R} \bigwedge_{j = 0}^R \bigwedge_{k = 0}^3
  (\lnot d_{ijk} \lor s_{ij} \lor e_{ij})
 \]
-である。
+である．
 
 \begin{rem}
- ここまでの制約をまとめると、以下の通りである。
+ ここまでの制約をまとめると，以下の通りである．
  \begin{itemize}
-  \item 行動開始地点と行動終了地点がただ$1$つ存在する。
-  \item 行動開始地点と行動終了地点はせいぜい$1$マスしか離れていない。
-  \item 塗った地点と塗った方向がただ$1$つ存在する。
-  \item 塗った地点は、行動開始地点または行動終了地点である。
+  \item 行動開始地点と行動終了地点がただ$1$つ存在する．
+  \item 行動開始地点と行動終了地点はせいぜい$1$マスしか離れていない．
+  \item 塗った地点と塗った方向がただ$1$つ存在する．
+  \item 塗った地点は，行動開始地点または行動終了地点である．
  \end{itemize}
 \end{rem}
 
 \subsection{塗った地点の制約}
 
-ここから先は、各ターン毎のフィールドの状況を鑑みて、
-$d_{ijk}$に制限を加える。この小節では、
-$0 \leq i, j \leq R$、および、$k = 0, 1, 2, 3$は固定する。
+ここから先は，各ターン毎の床の状況を鑑みて，
+$d_{ijk}$に制限を加える．この小節では，
+$0 \leq i, j \leq R$，および，$k = 0, 1, 2, 3$は固定する．
 
-以下では、次の前提を置く。
-\begin{itemize}
- \item SAT Solver を使って敵の位置を特定するのは、
-       直前のターンのフィールドの状況と現在のフィールドの状況を
-       見比べた際に、ある地点の色が敵軍の武将の色に変化したことを
-       確認したとき、および、そのときのみとする。
- \item 変化後の色を持った武将を、以下では単に\emph{敵}と呼ぶ。
-\end{itemize}
+床の状況を SAT Solver に入力する変数を用意する．
 
-この前提をもとに、フィールドの状況を SAT Solver に入力する
-変数を用意する。
-\begin{nota}[塗りのためのフィールドからの制約変数] \label{nota:field_var}
- $0 \leq l, m \leq R$とする。
+\begin{nota}[塗りのための床からの制約変数] \label{nota:field_var}
+ $0 \leq l, m \leq R$とする．
  \begin{enumerate}[1.]
-  \item $\alpha_{lm}$を「点$(l, m)$が知覚されており、かつ、
-        現在敵の色で塗られているなら真、
+  \item $\alpha_{lm}$を「点$(l, m)$が知覚されており，かつ，
+        現在敵の色で塗られているなら真，
         そうでないなら偽」
-        とする。より具体的に言うと、以下のいずれかの場合は真である。
+        とする．より具体的に言うと，以下のいずれかの場合は真である．
         \begin{itemize}
-         \item 点$(l, m)$が敵の色で塗られていると知覚されている場合。
+         \item 点$(l, m)$が敵の色で塗られていると知覚されている場合．
         \end{itemize}
-        また、以下のいずれかの場合は偽である。
+        また，以下のいずれかの場合は偽である．
         \begin{itemize}
-         \item 点$(l, m)$が味方軍の色、あるいは、敵以外の敵軍の色で塗ら
-               れていると知覚されている場合。
-         \item 点$(l, m)$が誰にも塗られていないと知覚されている場合。
-         \item 点$(l, m)$がそもそも知覚されていない場合。
+         \item 点$(l, m)$が味方軍の色，あるいは，敵以外の敵軍の色で塗ら
+               れていると知覚されている場合．
+         \item 点$(l, m)$が誰にも塗られていないと知覚されている場合．
+         \item 点$(l, m)$がそもそも知覚されていない場合．
         \end{itemize}
-  \item $\beta_{lm}$を「点$(l, m)$が知覚されており、かつ、
-        現在敵の色で塗られていないなら真、
+  \item $\beta_{lm}$を「点$(l, m)$が知覚されており，かつ，
+        現在敵の色で塗られていないなら真，
         そうでないなら偽」
-        とする。より具体的に言うと、以下のいずれかの場合は真である。
+        とする．より具体的に言うと，以下のいずれかの場合は真である．
         \begin{itemize}
-         \item 点$(l, m)$が味方軍の色、あるいは、敵以外の敵軍の色で塗ら
-               れていると知覚されている場合。
-         \item 点$(l, m)$が誰にも塗られていないと知覚されている場合。
+         \item 点$(l, m)$が味方軍の色，あるいは，敵以外の敵軍の色で塗ら
+               れていると知覚されている場合．
+         \item 点$(l, m)$が誰にも塗られていないと知覚されている場合．
         \end{itemize}
-        また、以下のいずれかの場合は偽である。
+        また，以下のいずれかの場合は偽である．
         \begin{itemize}
-         \item 点$(l, m)$が敵の色で塗られていると知覚されている場合。
-         \item 点$(l, m)$がそもそも知覚されていない場合。
+         \item 点$(l, m)$が敵の色で塗られていると知覚されている場合．
+         \item 点$(l, m)$がそもそも知覚されていない場合．
         \end{itemize}
-  \item $\gamma_{lm}$を「点$(l, m)$を敵が直前に塗ったことが確実ならば真、
-        そうでないなら偽」とする。つまり、現在敵の色で塗られているものの
-        敵の行動の直前は敵の色で塗られていない場合に真とし、
-        それ以外は偽とする。
+  \item $\gamma_{lm}$を「点$(l, m)$を敵が直前に塗ったことが確実ならば真，
+        そうでないなら偽」とする．つまり，現在敵の色で塗られているものの
+        敵の行動の直前は敵の色で塗られていない場合に真とし，
+        それ以外は偽とする．
   \item $\delta_{lm}$を「点$(l, m)$を敵が直前に塗らなかったことが
-        確実ならば真、そうでないなら偽」とする。
-        つまり、現在敵の色以外で塗られており、
-        敵の行動の直前も同じ色で塗られていた場合は真とし、
-        それ以外は偽とする。
+        確実ならば真，そうでないなら偽」とする．
+        つまり，現在敵の色以外で塗られており，
+        敵の行動の直前も同じ色で塗られていた場合は真とし，
+        それ以外は偽とする．
  \end{enumerate}
 \end{nota}
 
 \begin{rem} \label{rem:chikaku}
  記号~\ref{nota:field_var}の
- $\alpha_{lm}$、$\beta_{lm}$、$\gamma_{lm}$、$\delta_{lm}$は全て
- SAT Solver に真か偽かを入力するものとする。
- 例えば、$\alpha_{lm}$が真である場合には$1$つのリテラルからなる節
- $\alpha_{lm}$を、偽である場合には$1$つのリテラルからなる節
- $\lnot \alpha_{lm}$を入力する。
+ $\left\{ \alpha_{lm}, \beta_{lm}, \gamma_{lm}, \delta_{lm}
+ \right\}$は全て
+ SAT Solver に真か偽かを入力するものとする．
+ 例えば，$\alpha_{lm}$が真である場合には$1$つのリテラルからなる節
+ $\alpha_{lm}$を，偽である場合には$1$つのリテラルからなる節
+ $\lnot \alpha_{lm}$を入力する．
 \end{rem}
 
-さて、塗ったときの敵の地点と方向は$d_{ijk}$で表現されているが、
-この情報を塗ったマスの情報に予めおきかえておくことが以下では必要になる。
-つまり、以下で定義する変数$g_{lm}$を媒介して、
-$d_{ijk}$ではなく$g_{lm}$で制約を記述する。
+\begin{rem}
+ 考察を進めた結果，$\{ \alpha_{lm} \}$は使用しなかった．
+\end{rem}
+
+さて，塗ったときの敵の地点と方向は$d_{ijk}$で表現されているが，
+この情報を塗ったマスの情報に予めおきかえておくことが以下では必要になる．
+つまり，以下で定義する変数$g_{lm}$を媒介して，
+$d_{ijk}$ではなく$g_{lm}$で制約を記述する．
 
 \begin{nota}[塗った地点の情報を媒介する変数] \label{nota:params_d_g}
  \begin{enumerate}[1.]
   \item 敵が$(i, j)$の地点で方角$k$に塗ったときに塗られる地点の集合を
-        $D_{ijk}$とする。
-  \item $0 \leq l, m \leq R$とする。
-        $g_{lm}$を「点$(l, m)$が敵が直前の行動で塗った地点ならば真、そう
-        でないならば偽」とする。
+        $D_{ijk}$とする．
+  \item $0 \leq l, m \leq R$とする．
+        $g_{lm}$を「点$(l, m)$が敵が直前の行動で塗った地点ならば真，そう
+        でないならば偽」とする．
  \end{enumerate}
 \end{nota}
 
 \begin{rem}
- ここでは敵は固定されているので、$D_{ijk}$は$(i, j, k)$の組により
- 一意に定まる。
+ ここでは敵は固定されているので，$D_{ijk}$は$(i, j, k)$の組により
+ 一意に定まる．
 \end{rem}
 
 \begin{rem} 
- $g_{lm}$は、どの$d_{ijk}$が成立するかで真か偽かが決まるのであり、
- フィールドの情報とは関係がないことに注意されたい。
- $g_{lm}$とフィールドの情報$\beta_{lm}$、$\gamma_{lm}$、
- $\delta_{lm}$との整合性の条件式を以下で与える。
- これにより、$g$を媒介としてフィールドの情報から$d$に制約を
- 与えることができる。
+ $g_{lm}$は，どの$d_{ijk}$が成立するかで真か偽かが決まるのであり，
+ 床の情報とは関係がないことに注意されたい．
+ $g_{lm}$と床の情報$\beta_{lm}$，$\gamma_{lm}$，
+ $\delta_{lm}$との整合性の条件式を以下で与える．
+ これにより，$g$を媒介として床の情報から$d$に制約を
+ 与えることができる．
 \end{rem}
 
-さてまず、$d_{ijk}$の情報を$g_{lm}$の情報に置き換える条件式を書く。
-これは記号~\ref{nota:params_d_g}より、
+さてまず，$d_{ijk}$の情報を$g_{lm}$の情報に置き換える条件式を書く．
+これは記号~\ref{nota:params_d_g}より，
 \[
  d_{ijk} \Rightarrow \left( \bigwedge_{(l, m) \in D_{ijk}} g_{lm} \right)
  \land \left( \bigwedge_{(l, m) \not\in D_{ijk}} \lnot g_{lm} \right)
 \]
-である。系~\ref{cor:rightarrow}より、
+である．系~\ref{cor:rightarrow}より，
 \[
  \lnot d_{ijk} \lor 
  \left(
@@ -226,8 +300,8 @@ $d_{ijk}$ではなく$g_{lm}$で制約を記述する。
  \land \left( \bigwedge_{(l, m) \not\in D_{ijk}} \lnot g_{lm} \right)
  \right)
 \]
-と同値である。補題~\ref{lem:land_lor}及び
-$(i, j, k)$が固定されていたことを考慮すると、
+と同値である．補題~\ref{lem:land_lor}及び
+$(i, j, k)$が固定されていたことを考慮すると，
 求める条件は
 \begin{equation}
  (\text{param-trans}) = \bigwedge_{i, j, k} \left(
@@ -238,155 +312,144 @@ $(i, j, k)$が固定されていたことを考慮すると、
                              (\lnot d_{ijk} \lor \lnot g_{lm}) \right)
                            \right)
 \end{equation}
-である。
+である．
 
-次に、$\beta_{ij}$、$\gamma_{ij}$、$\delta_{ij}$と
-$g_{ij}$の関係式を導く。次の関係がある。
+次に，$\beta_{ij}$，$\gamma_{ij}$，$\delta_{ij}$と
+$g_{ij}$の関係式を導く．次の関係がある．
 \begin{enumerate}
- \item 敵が直前に塗り替えたことが確実な点は、敵が塗った点である。
- \item 敵が塗った点は、敵の色でぬられた点、または、知覚できていない点である。
- \item 敵が直前に塗り替えなかったことが確実な点は、敵が塗った点ではない。
+ \item 敵が直前に塗り替えたことが確実な点は，敵が直前の行動で塗った点である．
+ \item 敵が直前の行動で塗った点は，
+       敵の色で塗られた点，または，知覚できていない点である．
+ \item 敵が直前に塗り替えなかったことが確実な点は，
+       敵が直前の行動で塗った点ではない．
 \end{enumerate}
-言うまでもなくこれらは、任意の$l, m$に対して以下が成立することを
-意味している。
+言うまでもなくこれらは，任意の$(l, m)$に対して以下が成立することを
+意味している．
 \begin{enumerate}
- \item $\gamma_{lm} \Rightarrow g_{lm}$。
- \item $g_{lm} \Rightarrow \lnot \beta_{lm}$。
- \item $\delta_{lm} \Rightarrow \lnot g_{lm}$。
+ \item $\gamma_{lm} \Rightarrow g_{lm}$．
+ \item $g_{lm} \Rightarrow \lnot \beta_{lm}$．
+ \item $\delta_{lm} \Rightarrow \lnot g_{lm}$．
 \end{enumerate}
-補題~\ref{lem:land_lor}、系~\ref{cor:rightarrow}より、
-以下が得られる。
+補題~\ref{lem:land_lor}，系~\ref{cor:rightarrow}より，
+以下が得られる．
 \begin{align*}
  (\text{field})_\gamma &=
  \bigwedge_{l = 0}^R  \bigwedge_{m = 0}^R (\lnot \gamma_{lm} \lor
- g_{ij}), \\
+ g_{lm}), \\
  (\text{field})_\beta &=
  \bigwedge_{l = 0}^R  \bigwedge_{m = 0}^R (\lnot g_{lm} \lor
- \lnot \beta_{ij}), \\
+ \lnot \beta_{lm}), \\
  (\text{field})_\delta &=
  \bigwedge_{l = 0}^R  \bigwedge_{m = 0}^R (\lnot \delta_{lm} \lor
- \lnot g_{ij}).
+ \lnot g_{lm}).
 \end{align*}
 
 \subsection{隠遁・顕現の条件}
 
-\begin{defn}
- $\{s_{ij} \}_{ij}$、$\{e_{ij} \}_{ij}$、
- $\{d_{ijk} \}_{ijk}$は、前節までの条件をみたすものとする。
- \begin{enumerate}[1.]
-  \item 真である$s_{ij}$、$e_{ij}$、$d_{ijk}$の組み合わせを\emph{行動}
-        と呼ぶ。特にどの元が真であるのかを問題としない場合は
-        $(s, e, d)$とも記す。
-  \item ある行動が\emph{行動可能}であるとは、その行動が$1$ターンのコスト
-        内で行動可能であることをいう。
- \end{enumerate}
-\end{defn}
+前小節までで，隠遁と顕現の条件以外の制約を考慮に入れた．
+本小節では，隠遁と顕現の条件からありえない組み合わせを排除し，
+その行動が，定義~\ref{defn:koudou-sed}.2. で定義した
+行動可能であることを保証する．
 
-注意~\ref{rem:kumiawase}でも指摘した通り、
-$(s, e, d)$の組み合わせは、ルール上の意味での「敵の$1$ターンの行動」に対応する。
-前小節までで、隠遁と顕現の条件以外の制約を考慮に入れた。
-本小節では、隠遁と顕現の条件からありえない組み合わせを排除し、
-その行動が行動可能であることを保証する。
-
-まずは、SAT-Solver に入力する変数を用意する。
+まずは，SAT Solver に入力する変数を用意する．
 
 \begin{nota} \label{nota:pi}
- $\pi_0$を、敵の開始地点が判明していないならば真、そうでないならば偽とする。
+ $\pi_0$を，敵の開始地点が判明していないならば真，そうでないならば偽とする．
 \end{nota}
 
 \begin{rem}
- ゲーム中は、自分のターン毎に敵の位置が判明しているか否かが与えられる。
- 現在の敵の位置、すなわち、直前の敵の行動の行動終了地点
- が判明している場合は、そもそも
- SAT-Solver を発動する必要はない。
- 直前の敵の行動の行動開始地点が判明している場合は、
- 顕現動作を省略できるので、SAT-Solver には
- $1$つのリテラルからなる節$\lnot \pi_0$を入力する。
- また、直前の敵の行動の行動開始地点を$(i, j)$とするとき、
- $1$つのリテラルからなる節$s_{ij}$を入力する。
- 直前の敵の行動の行動開始地点が判明していない場合は、
- SAT-Solver には
- $1$つのリテラルからなる節$\pi_0$を入力する。
+ ゲーム中は，自分のターン毎に敵の位置が判明しているか否かが与えられる．
+ 現在の敵の位置，すなわち，直前の敵の行動の行動終了地点
+ が判明している場合は，そもそも
+ SAT Solver を発動する必要はない．
+ 直前の敵の行動の行動開始地点が判明している場合は，
+ 顕現動作を省略できるので，SAT Solver には
+ $1$つのリテラルからなる節$\lnot \pi_0$を入力する．
+ また，直前の敵の行動の行動開始地点を$(i, j)$とするとき，
+ $1$つのリテラルからなる節$s_{ij}$を入力する．
+ 直前の敵の行動の行動開始地点が判明していない場合は，
+ SAT Solver には
+ $1$つのリテラルからなる節$\pi_0$を入力する．
 \end{rem}
 
-\begin{nota}[隠伏・顕現のためのフィールドからの制約変数] \label{nota:field_var_2}
- $0 \leq l, m \leq R$とする。
+\begin{nota}[隠伏・顕現のための床からの制約変数] \label{nota:field_var_2}
+ $0 \leq l, m \leq R$とする．
  \begin{enumerate}[1.]
-  \item $\kappa_{lm}$を「点$(l, m)$が知覚されており、かつ、
-        現在敵軍の色で塗られているなら真、
+  \item $\kappa_{lm}$を「点$(l, m)$が知覚されており，かつ，
+        現在敵軍の色で塗られているなら真，
         そうでないなら偽」
-        とする。より具体的に言うと、以下のいずれかの場合は真である。
+        とする．より具体的に言うと，以下のいずれかの場合は真である．
         \begin{itemize}
-         \item 点$(l, m)$が敵軍の色で塗られていると知覚されている場合。
+         \item 点$(l, m)$が敵軍の色で塗られていると知覚されている場合．
         \end{itemize}
-        また、以下のいずれかの場合は偽である。
+        また，以下のいずれかの場合は偽である．
         \begin{itemize}
-         \item 点$(l, m)$が味方軍の色で塗られていると知覚されている場合。
-         \item 点$(l, m)$が誰にも塗られていないと知覚されている場合。
-         \item 点$(l, m)$がそもそも知覚されていない場合。
+         \item 点$(l, m)$が味方軍の色で塗られていると知覚されている場合．
+         \item 点$(l, m)$が誰にも塗られていないと知覚されている場合．
+         \item 点$(l, m)$がそもそも知覚されていない場合．
         \end{itemize}
-  \item $\kappa_{lm}'$を$1$ターン前の$\kappa_{lm}$とする。
-        最初のターンでは全て偽とする。
-  \item $\lambda_{lm}$を「点$(l, m)$が知覚されており、かつ、
-        現在敵軍の色で塗られていないなら真、
+  \item $\kappa_{lm}'$を$1$ターン前の$\kappa_{lm}$とする．
+        最初のターンでは全て偽とする．
+  \item $\lambda_{lm}$を「点$(l, m)$が知覚されており，かつ，
+        現在敵軍の色で塗られていないなら真，
         そうでないなら偽」
-        とする。より具体的に言うと、以下のいずれかの場合は真である。
+        とする．より具体的に言うと，以下のいずれかの場合は真である．
         \begin{itemize}
-         \item 点$(l, m)$が味方軍の色で塗られていると知覚されている場合。
-         \item 点$(l, m)$が誰にも塗られていないと知覚されている場合。
+         \item 点$(l, m)$が味方軍の色で塗られていると知覚されている場合．
+         \item 点$(l, m)$が誰にも塗られていないと知覚されている場合．
         \end{itemize}
-        また、以下のいずれかの場合は偽である。
+        また，以下のいずれかの場合は偽である．
         \begin{itemize}
-         \item 点$(l, m)$が敵軍の色で塗られていると知覚されている場合。
-         \item 点$(l, m)$がそもそも知覚されていない場合。
+         \item 点$(l, m)$が敵軍の色で塗られていると知覚されている場合．
+         \item 点$(l, m)$がそもそも知覚されていない場合．
         \end{itemize}
-  \item $\lambda_{lm}'$を$1$ターン前の$\lambda_{lm}$とする。
-        最初のターンでは全て偽とする。
+  \item $\lambda_{lm}'$を$1$ターン前の$\lambda_{lm}$とする．
+        最初のターンでは全て偽とする．
  \end{enumerate}
 \end{nota}
 
-記号~\ref{nota:field_var_2}で導入した変数についても、
-注意~\ref{rem:chikaku}に準ずる。
+記号~\ref{nota:field_var_2}で導入した変数についても，
+注意~\ref{rem:chikaku}に準ずる．
 
-ここまでの情報から、敵の行動開始地点に制約がかかる。
-つまり、敵の行動開始地点が不明であるのに、
+ここまでの情報から，敵の行動開始地点に制約がかかる．
+つまり，敵の行動開始地点が不明であるのに，
 知覚できていて敵軍の色で塗られていない箇所が敵の行動開始地点であることは
-ない。すなわち、任意の$(i, j)$に対し、以下が成立する。
+ない．すなわち，任意の$(i, j)$に対し，以下が成立する．
 \[
- \pi_0 \land \lambda_{ij}' \Rightarrow \lnot s_{ij}.
+ (\pi_0 \land \lambda_{ij}') \Rightarrow \lnot s_{ij}.
 \]
-系~\ref{cor:rightarrow}を用いると、これは以下と同値である。
+系~\ref{cor:rightarrow}を用いると，これは以下と同値である．
 \[
  \lnot \pi_0 \lor \lnot \lambda_{ij}' \lor \lnot s_{ij}.
 \]
-よって、以下が成立する。
+よって，以下が成立する．
 \[
  (\text{start-hidden}) = \bigwedge_{i = 0}^R
  \bigwedge_{j = 0}^R
  \left(\lnot \pi_0 \lor \lnot \lambda_{ij}' \lor \lnot s_{ij} \right).
 \]
-同様に、行動終了地点についても、以下が成立する。
+同様に，行動終了地点についても，以下が成立する．
 \[
  (\text{goal-hidden}) = \bigwedge_{i = 0}^R
  \bigwedge_{j = 0}^R
  \left(\lnot \lambda_{ij} \lor \lnot g_{ij} \right).
 \]
 
-隠遁と顕現の条件からありえない組み合わせを排除するために、
-以下の変数を用意する。
+隠遁と顕現の条件からありえない組み合わせを排除するために，
+以下の変数を用意する．
 
 \begin{nota} \label{nota:r_s}
  \begin{enumerate}[1.]
-  \item $r_0$を、開始地点で隠伏状態であるならば真、そうでないならば偽とする。
-  \item $r_1$を、終了地点で隠伏状態であるならば真、そうでないならば偽と
-        する。
-  \item $r_2$を、開始地点と終了地点が異なっているならば真、そうでないな
-        らば偽とする。
+  \item $r_0$を，開始地点で隠伏状態であるならば真，そうでないならば偽とする．
+  \item $r_1$を，終了地点で隠伏状態であるならば真，そうでないならば偽と
+        する．
+  \item $r_2$を，開始地点と終了地点が異なっているならば真，そうでないな
+        らば偽とする．
  \end{enumerate}
 \end{nota}
 
 \begin{prop} \label{prop:kengen_inpuku}
- ある行動が行動可能であるための条件は、以下の節が真であることである。
+ ある行動が行動可能であるための条件は，以下の節が真であることである．
  \begin{equation}
   \lnot r_0 \lor \lnot r_1 \lor \lnot r_2.
    \label{eq:kengen_inpuku}
@@ -394,160 +457,161 @@ $(s, e, d)$の組み合わせは、ルール上の意味での「敵の$1$ター
 \end{prop}
 
 \begin{proof}
- ある行動がコスト$7$以内である条件を書き下せばよい。
- 今回の SAT-Solver を発動させる前提条件として、
- 敵の行動の前後で土地の所有に変化があることが前提条件になっている。
- そこで、「領有」の動作が少なくとも$1$回は行われている。
- 領有は$4$コストであるから、ちょうど$1$回行われている。
+ ある行動がコスト$7$以内である条件を書き下せばよい．
+ 今回の SAT Solver を発動させる前提条件として，
+ 敵の行動の前後で土地の所有に変化があることが前提条件になっている．
+ そこで，「領有」の動作が少なくとも$1$回は行われている．
+ 領有は$4$コストであるから，ちょうど$1$回行われている．
 
- したがって、
- 残りの$3$コストで、「移動」「隠伏と顕現の切り替え」がどれだけできるかに
- 考察が帰着される。 
- 隠伏に顕現状態でできないことは存在しないので、以下を仮定して良い。
+ したがって，
+ 残りの$3$コストで，「移動」「隠伏と顕現の切り替え」がどれだけできるかに
+ 考察が帰着される． 
+ 隠伏に顕現状態でできないことは存在しないので，以下を仮定して良い．
  \begin{itemize}
-  \item 顕現の動作が行われるならば、行動開始時点で行っていると仮定して良
-        い。
-  \item 隠伏の動作が行われるならば、行動終了時点で行っていると仮定して良
-        い。
+  \item 顕現の動作が行われるならば，行動開始時点で行っていると仮定して良
+        い．
+  \item 隠伏の動作が行われるならば，行動終了時点で行っていると仮定して良
+        い．
  \end{itemize} 
- つまり隠伏と顕現の切り替えは、最大でも$2$回しか行われないとしてよい。
- また、行動は$2$コストかかるため、最大でも$1$回しか行われない。
- 隠伏と顕現の切り替えは$1$コストである。したがって、$3$コストで
- できないことは、
- 「隠伏と顕現の切り替えを$2$回やり、かつ、移動を$1$回した場合」
- に限られる。
- 最初の顕現動作があったことは$r_0$、
- 移動動作があったことは$r_2$、
- 最後の顕現動作があったことは$r_1$でわかる。
- \eqref{eq:kengen_inpuku}が行動可能の条件である。\qedhere
+ つまり隠伏と顕現の切り替えは，最大でも$2$回しか行われないとしてよい．
+ また，行動は$2$コストかかるため，最大でも$1$回しか行われない．
+ 隠伏と顕現の切り替えは$1$コストである．したがって，$3$コストで
+ できないことは，
+ 「隠伏と顕現の切り替えを$2$回やり，かつ，移動を$1$回した場合」
+ に限られる．
+ 最初の顕現動作があったことは$r_0$，
+ 移動動作があったことは$r_2$，
+ 最後の隠伏動作があったことは$r_1$でわかる．
+ \eqref{eq:kengen_inpuku}が行動可能の条件である．\qedhere
 \end{proof}
 
 \begin{rem} \label{rem:kengen_inpuku_omit}
- 実際には、\eqref{eq:kengen_inpuku}ではなく、以下の節を入力する。
+ 実際には，\eqref{eq:kengen_inpuku}ではなく，以下の節を入力する．
  \begin{equation}
   (\text{movable}) = \lnot r_0 \lor \lnot r_1 \lor \lnot r_2 \lor \lnot \pi_0.
    \label{eq:movable}
  \end{equation}
- 以下の点に注意されたい。
- \begin{enumerate}[1.] \sage
-  \item 記号~\ref{nota:r_s}で定められた$r_0, r_1, r_2$それぞれ、
-        真とも偽とも言えない場合は、SAT-Solver 上はその変数は偽として取り扱い、
-        \eqref{eq:movable}を真にする。
-        この場合、命題~\ref{prop:kengen_inpuku}を考慮するに
-        十分な条件がないので、本小節の内容は敵の位置を絞り込む手がかりに
-        はならない。だから、
-        $r_0, r_1, r_2$それぞれ、「偽であるための条件」を考察する必要はない。
-  \item 以下では、直前の敵の行動の行動開始地点・
-        行動終了地点が判明しないものと仮定する。
-        つまり、 SAT-Solver は発動され、$\pi_0$は真と仮定する。
-        このとき、\eqref{eq:movable}は
-        \eqref{eq:kengen_inpuku}と同値である。
-        以下では、\eqref{eq:kengen_inpuku}を考察する。
+ 以下の点に注意されたい．
+ \begin{enumerate}[1.]
+  \item 記号~\ref{nota:r_s}で定められた$r_0, r_1, r_2$それぞれ，
+        真とも偽とも言えない場合は，SAT Solver 上はその変数は偽として取り扱い，
+        \eqref{eq:movable}を真にする．
+        この場合，命題~\ref{prop:kengen_inpuku}を考慮するに
+        十分な条件がないので，本小節の内容は敵の位置を絞り込む手がかりに
+        はならない．だから，
+        $r_0, r_1, r_2$それぞれ，「偽であるための条件」を考察する必要はない．
+  \item 以下では，直前の敵の行動の行動開始地点・
+        行動終了地点が判明しないものと仮定する．
+        つまり， SAT Solver は発動され，$\pi_0$は真と仮定する．
+        このとき，\eqref{eq:movable}は
+        \eqref{eq:kengen_inpuku}と同値である．
+        以下では，\eqref{eq:kengen_inpuku}を考察する．
  \end{enumerate}
 \end{rem}
 
-記号~\ref{nota:r_s}.1.~の条件を述べる。行動開始地点を$(i, j)$と仮定する。
-$r_0$は真であるといえる条件は、
-$\kappa_{ij}'$が真である場合であり、またその場合に限る。
-詳しく言うと以下のとおりである。
-$\pi_0$が真であるから敵の行動開始地点は認識できていない。
-その状態で、敵は行動開始地点では隠伏状態であるといえるのは、
-$(i, j)$が敵の色と認識できている場合である。
-以上を踏まえて、条件は任意の$(i, j)$に対し、
+記号~\ref{nota:r_s}.1.~の条件を述べる．行動開始地点を$(i, j)$と仮定する．
+$r_0$は真であるといえる条件は，
+$\kappa_{ij}'$が真である場合であり，またその場合に限る．
+詳しく言うと以下のとおりである．
+$\pi_0$が真であるから敵の行動開始地点は認識できていない．
+その状態で，敵は行動開始地点では隠伏状態であるといえるのは，
+$(i, j)$が敵の色と認識できている場合である．
+以上を踏まえて，条件は任意の$(i, j)$に対し，
 \[
- s_{ij} \land \kappa_{ij}' \Rightarrow r_0
+ (s_{ij} \land \kappa_{ij}') \Rightarrow r_0
 \]
-である。系~\ref{cor:rightarrow}より、以下を SAT-Solver に入力する。
+である．系~\ref{cor:rightarrow}より，以下を SAT Solver に入力する．
 \[
  (\text{Force})_{r_0} = \bigwedge_{i = 0}^R \bigwedge_{j = 0}^R 
  (\lnot s_{ij} \lor \lnot \kappa_{ij}' \lor r_0).
 \]
-同様に、$r_1$については以下のとおりである。
+同様に，$r_1$については以下のとおりである．
 \[
  (\text{Force})_{r_1} = \bigwedge_{i = 0}^R \bigwedge_{j = 0}^R 
- (\lnot g_{ij} \lor \lnot \kappa_{ij} \lor r_0).
+ (\lnot g_{ij} \lor \lnot \kappa_{ij} \lor r_1).
 \]
 
-記号~\ref{nota:r_s}.3.~の条件は厄介である。
-着想自体は単純である。
-行動開始地点と行動終了地点が一致しているとは、
-ある$(i, j)$について$s_{ij}$かつ$e_{ij}$が成立することである。
-したがって、記号~\ref{nota:r_s}.3.~の条件は、
+記号~\ref{nota:r_s}.3.~の条件は厄介である．
+着想自体は単純である．
+行動開始地点と行動終了地点が一致しているとは，
+ある$(i, j)$について$s_{ij}$かつ$e_{ij}$が成立することである．
+したがって，記号~\ref{nota:r_s}.3.~の条件は，
 \[
  \lnot \left( \bigvee_{i=0}^R \bigvee_{j=0}^R (s_{ij} \land e_{ij})
  \right)
  \Rightarrow r_2
 \]
-である。系~\ref{cor:rightarrow}より、これは
+である．系~\ref{cor:rightarrow}より，これは
 \[
  \left( \bigvee_{i=0}^R \bigvee_{j=0}^R (s_{ij} \land e_{ij})
  \right) \lor r_2
 \]
-である。
+である．
 \begin{equation}
  P_{r_2} = \bigvee_{i=0}^R \bigvee_{j=0}^R (s_{ij} \land e_{ij})
   \label{eq:p_r_2_original}
 \end{equation}
-とおく。$P_{r_2}$を SAT-Solver の入力に直接直すと、
-以下のとおりである。
+とおく．$P_{r_2}$を SAT Solver の入力に直接直すと，
+以下のとおりである．
 \begin{equation}
   P_{r_2} = \bigwedge_{\sigma \in \Sigma}
    \left( 
     \bigvee_{i=0}^R \bigvee_{j=0}^R \sigma_{ij} \right).
   \label{eq:p_r_2}
 \end{equation}
-ここで、
+ここで，
 \[
- \Sigma = \{ \sigma \colon \{0, \dots, R \}^2 \to \{ s_{ij} , e_{ij}
- \}_{ij} \mid \sigma_{ij} \text{は} s_{ij} \text{または} e_{ij}. \}.
+ \Sigma = \left\{ \sigma \colon \{0, \dots, R \}^2 \to \{ s_{ij} , e_{ij}
+ \}_{ij} \mid \sigma_{ij} \text{は} s_{ij} \text{または} e_{ij}.
+ \right\}.
 \]
-さて、\eqref{eq:p_r_2}において、右辺は$2^{R^2}$個の節から
-なっている。$R = 14$であるから、これを制限時間内に入力することは
-不可能である。
+さて，\eqref{eq:p_r_2}において，右辺は$2^{(R+1)^2}$個の節から
+なっている．$R = 14$であるから，これを制限時間内に入力することは
+不可能である．
 
-ところが、今回の場合、$\{ s_{ij} \}$と$\{ e_{ij} \}$には
-制約がある。
+ところが，今回の場合，$\{ s_{ij} \}$と$\{ e_{ij} \}$には
+制約がある．
 \begin{itemize}
- \item $\{ s_{ij} \}$は、あるただ$1$つの$(i, j)$のみ真であり、
-       他は偽である。
- \item $\{ e_{ij} \}$も同様である。
+ \item $\{ s_{ij} \}$は，あるただ$1$つの$(i, j)$のみ真であり，
+       他は偽である．
+ \item $\{ e_{ij} \}$も同様である．
 \end{itemize}
-これらは、
+これらは，
 $(\text{Allow})_s$かつ$(\text{Forbid})_s$かつ
-$(\text{Allow})_e$かつ$(\text{Forbid})_e$として、
-SAT-Solver に
-\ref{subsec:chiten}~小節で入力済みである。
+$(\text{Allow})_e$かつ$(\text{Forbid})_e$として，
+SAT Solver に
+\S~\ref{subsec:chiten}で入力済みである．
 
 \begin{lem}
  $(\text{Allow})_s$かつ$(\text{Forbid})_s$かつ
  $(\text{Allow})_e$かつ$(\text{Forbid})_e$
- の仮定のもとで、$P_{r_2}$は以下の$P_{r_2}^{\prime}$と同値である。
+ の仮定のもとで，$P_{r_2}$は以下の$P_{r_2}^{\prime}$と同値である．
  \begin{equation}
   P_{r_2}^{\prime} = \bigwedge_{\sigma \in \Sigma^{\prime}}
    \left( 
     \bigvee_{i=0}^R \bigvee_{j=0}^R \sigma_{ij} \right).
   \label{eq:p_r_2_prime}
  \end{equation}
- ここで、
+ ここで，
  \begin{multline*}
   \Sigma^{\prime}
  = \{ \sigma \in \Sigma'
- \mid \text{ある$(i', j')$について$\sigma_{i'j'} = e_{i'j'}$。} \\
+ \mid \text{ある$(i', j')$について$\sigma_{i'j'} = e_{i'j'}$．} \\
   \text{
- それ以外の$(i, j)$について$\sigma_{ij} = s_{ij}$。} \}.
+ それ以外の$(i, j)$について$\sigma_{ij} = s_{ij}$．} \}.
  \end{multline*}
 \end{lem}
 
 \begin{proof}
- $\Sigma' \subset \Sigma$より、
- $P_{r_2} \Rightarrow P_{r_2}'$である。
- $P_{r_2}' \Rightarrow P_{r_2}$を示すために、
- $\lnot P_{r_2} \Rightarrow \lnot P_{r_2}'$を示す。
+ $\Sigma' \subset \Sigma$より，
+ $P_{r_2} \Rightarrow P_{r_2}'$である．
+ $P_{r_2}' \Rightarrow P_{r_2}$を示すために，
+ $\lnot P_{r_2} \Rightarrow \lnot P_{r_2}'$を示す．
  
  $(\text{Allow})_s$かつ$(\text{Forbid})_s$かつ
- $(\text{Allow})_e$かつ$(\text{Forbid})_e$より、
- ある$(i_1, j_1)$、$(i_2, j_2)$が存在し、
- 以下が成立する。
+ $(\text{Allow})_e$かつ$(\text{Forbid})_e$より，
+ ある$(i_1, j_1)$，$(i_2, j_2)$が存在し，
+ 以下が成立する．
  \begin{align*}
   s_{ij} &=
   \begin{cases}
@@ -560,9 +624,9 @@ SAT-Solver に
    \text{偽} & (i, j) \neq (i_2, j_2).
   \end{cases}
  \end{align*}
- \eqref{eq:p_r_2_original}にもどれば、
+ \eqref{eq:p_r_2_original}にもどれば，
  $P_{r_2}$が偽であることは
- $(i_1, j_1) \neq (i_2, j_2)$であることと同値である。
+ $(i_1, j_1) \neq (i_2, j_2)$であることと同値である．
  
  $\sigma \in \Sigma$を
  \[
@@ -572,20 +636,20 @@ SAT-Solver に
   s_{ij} & (i, j) \neq (i_1, j_1)
  \end{cases}
  \]
- と定める。すると、$\sigma \in \Sigma'$である。
- このとき、
+ と定める．すると，$\sigma \in \Sigma'$である．
+ このとき，
  \[
   \bigvee_{i = 0}^R
   \bigvee_{j = 0}^R \sigma_{ij}
  \]
- は偽である。よって$P_{r_2}'$は偽である。
- $\lnot P_{r_2} \Rightarrow \lnot P_{r_2}'$が示された。\qedhere
+ は偽である．よって$P_{r_2}'$は偽である．
+ $\lnot P_{r_2} \Rightarrow \lnot P_{r_2}'$が示された．\qedhere
 \end{proof}
 
-\eqref{eq:p_r_2_prime}の右辺の節の個数は$R^2$であるから、
-$P_{r_2}$の代わりに$P_{r_2}'$を採用すれば十分である。
-すなわち、簡約化ができたことになる。
-結局、入力するべき条件は、以下のとおりである。
+\eqref{eq:p_r_2_prime}の右辺の節の個数は$(R+1)^2 = 225$であるから，
+$P_{r_2}$の代わりに$P_{r_2}'$を採用することができる．
+すなわち，簡約化ができたことになる．
+結局，入力するべき条件は，以下のとおりである．
 \[
 (\text{Force})_{r_2} = \bigwedge_{\sigma \in \Sigma^{\prime}}
    \left( 
